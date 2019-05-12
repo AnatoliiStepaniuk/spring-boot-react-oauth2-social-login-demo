@@ -8,15 +8,23 @@ import com.example.springsocial.security.UserPrincipal;
 import com.example.springsocial.security.oauth2.user.OAuth2UserInfo;
 import com.example.springsocial.security.oauth2.user.OAuth2UserInfoFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -24,6 +32,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    public CustomOAuth2UserService() {
+        super();
+        supportAllMediaTypesForJacksonConverter();
+    }
+
+    private void supportAllMediaTypesForJacksonConverter(){
+        RestTemplate restTemplate = new RestTemplate();
+        restTemplate.setErrorHandler(new OAuth2ErrorResponseErrorHandler());
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+        converter.setSupportedMediaTypes(Collections.singletonList(MediaType.ALL));
+        restTemplate.getMessageConverters().add(converter);
+        super.setRestOperations(restTemplate);
+    }
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest oAuth2UserRequest) throws OAuth2AuthenticationException {
