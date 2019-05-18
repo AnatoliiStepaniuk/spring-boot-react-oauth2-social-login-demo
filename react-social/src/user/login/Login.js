@@ -1,11 +1,12 @@
 import React, { Component } from 'react';
 import './Login.css';
-import { GOOGLE_AUTH_URL, FACEBOOK_AUTH_URL, GITHUB_AUTH_URL, ACCESS_TOKEN } from '../../constants';
+import { GOOGLE_AUTH_URL, FACEBOOK_AUTH_URL, GITHUB_AUTH_URL, LINKEDIN_AUTH_URL, ACCESS_TOKEN } from '../../constants';
 import { login } from '../../util/APIUtils';
 import { Link, Redirect } from 'react-router-dom'
 import fbLogo from '../../img/fb-logo.png';
 import googleLogo from '../../img/google-logo.png';
 import githubLogo from '../../img/github-logo.png';
+import linkedinLogo from '../../img/linkedin-logo.png';
 import Alert from 'react-s-alert';
 
 class Login extends Component {
@@ -60,6 +61,8 @@ class SocialLogin extends Component {
                     <img src={fbLogo} alt="Facebook" /> Log in with Facebook</a>
                 <a className="btn btn-block social-btn github" href={GITHUB_AUTH_URL}>
                     <img src={githubLogo} alt="Github" /> Log in with Github</a>
+                <a className="btn btn-block social-btn linkedin" href={LINKEDIN_AUTH_URL}>
+                    <img src={linkedinLogo} alt="LinkedIn" /> Log in with LinkedIn</a>
             </div>
         );
     }

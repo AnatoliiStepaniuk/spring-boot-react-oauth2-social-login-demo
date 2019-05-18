@@ -8,8 +8,8 @@ import com.example.springsocial.security.UserPrincipal;
 import com.example.springsocial.security.oauth2.user.OAuth2UserInfo;
 import com.example.springsocial.security.oauth2.user.OAuth2UserInfoFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.*;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.core.AuthenticationException;
@@ -22,10 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.net.URI;
+import java.util.*;
 
 @Service
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
@@ -33,9 +31,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     @Autowired
     private UserRepository userRepository;
 
+    private RestTemplate restTemplate;
+
+    private static final ParameterizedTypeReference<Map<String, Object>> PARAMETERIZED_RESPONSE_TYPE =
+            new ParameterizedTypeReference<Map<String, Object>>() {};
+
     public CustomOAuth2UserService() {
         super();
         supportAllMediaTypesForJacksonConverter();
+        this.restTemplate = new RestTemplate();
     }
 
     private void supportAllMediaTypesForJacksonConverter(){
@@ -62,7 +66,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private OAuth2User processOAuth2User(OAuth2UserRequest oAuth2UserRequest, OAuth2User oAuth2User) {
-        OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(oAuth2UserRequest.getClientRegistration().getRegistrationId(), oAuth2User.getAttributes());
+        Map<String, Object> attributes = new HashMap<>( oAuth2User.getAttributes());
+        if(oAuth2UserRequest.getClientRegistration().getRegistrationId().equalsIgnoreCase(AuthProvider.linkedin.toString())){
+            populateLinkedinData(oAuth2UserRequest, attributes);
+        }
+
+        OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(oAuth2UserRequest.getClientRegistration().getRegistrationId(), attributes);
+
         if(StringUtils.isEmpty(oAuth2UserInfo.getEmail())) {
             throw new OAuth2AuthenticationProcessingException("Email not found from OAuth2 provider");
         }
@@ -81,7 +91,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user = registerNewUser(oAuth2UserRequest, oAuth2UserInfo);
         }
 
-        return UserPrincipal.create(user, oAuth2User.getAttributes());
+        return UserPrincipal.create(user, attributes);
     }
 
     private User registerNewUser(OAuth2UserRequest oAuth2UserRequest, OAuth2UserInfo oAuth2UserInfo) {
@@ -99,6 +109,37 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         existingUser.setName(oAuth2UserInfo.getName());
         existingUser.setImageUrl(oAuth2UserInfo.getImageUrl());
         return userRepository.save(existingUser);
+    }
+
+    private void populateLinkedinData(OAuth2UserRequest oAuth2UserRequest, Map<String, Object> attributes){
+        attributes.put("email", getLinkedInEmail(oAuth2UserRequest));
+        attributes.put("profilePicture", getLinkedinProfileImage(oAuth2UserRequest));
+    }
+
+    private String getLinkedInEmail(OAuth2UserRequest oAuth2UserRequest){
+        URI uri = URI.create("https://api.linkedin.com/v2/clientAwareMemberHandles?q=members&projection=(elements*(primary,type,handle~))");
+
+        RequestEntity<Object> request = new RequestEntity<>(getHeaders(oAuth2UserRequest), HttpMethod.GET, uri);
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(request, PARAMETERIZED_RESPONSE_TYPE);
+        String email = (String)((Map) ((Map) ((List) response.getBody().get("elements")).get(0)).get("handle~")).get("emailAddress");
+        return email;
+    }
+
+    private String getLinkedinProfileImage(OAuth2UserRequest oAuth2UserRequest){
+        URI uri = URI.create("https://api.linkedin.com/v2/me?projection=(id,profilePicture(displayImage~:playableStreams))");
+
+        RequestEntity<Object> request = new RequestEntity<>(getHeaders(oAuth2UserRequest), HttpMethod.GET, uri);
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(request, PARAMETERIZED_RESPONSE_TYPE);
+        List elements = (List)((Map)((Map)response.getBody().get("profilePicture")).get("displayImage~")).get("elements");
+        String profileImage = (String)((Map) ((List) ((Map) elements.get(elements.size() - 1)).get("identifiers")).get(0)).get("identifier");
+        return profileImage;
+    }
+
+    private HttpHeaders getHeaders(OAuth2UserRequest oAuth2UserRequest){
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.setBearerAuth(oAuth2UserRequest.getAccessToken().getTokenValue());
+        return headers;
     }
 
 }

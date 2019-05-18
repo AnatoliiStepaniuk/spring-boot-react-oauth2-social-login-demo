@@ -37,11 +37,27 @@ spring:
               scope:
                 - user:email
                 - read:user
+            linkedin:
+              provider: linkedin
+              clientId: 7127x21fd7121vi
+              clientSecret: d912Kt163sdvrC9asdsO
+              redirectUriTemplate: "{baseUrl}/oauth2/callback/{registrationId}"
+              authorizationGrantType: authorization_code
+              clientAuthenticationMethod: post
+              scope:
+                - r_emailaddress
+                - r_liteprofile
+                - w_member_social
           provider:
             facebook:
               authorizationUri: https://www.facebook.com/v3.0/dialog/oauth
               tokenUri: https://graph.facebook.com/v3.0/oauth/access_token
               userInfoUri: https://graph.facebook.com/v3.0/me?fields=id,first_name,middle_name,last_name,name,email,verified,is_verified,picture.width(250).height(250)
+            linkedin:
+              authorizationUri: https://www.linkedin.com/oauth/v2/authorization
+              tokenUri: https://www.linkedin.com/oauth/v2/accessToken
+              userInfoUri: https://api.linkedin.com/v2/me
+              userNameAttribute: id
 app:
   auth:
     tokenSecret: 926D96C90030DD58429D2751AC1BDBBC
